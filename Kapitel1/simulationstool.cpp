@@ -33,7 +33,7 @@ void printArray()
 void placeBuilding(int x, int y, BUILDING building)
 {
     // Check if x or y are out of bounds
-    if (x > buildings.size() || x < 0 || y > buildings[0].size() || y < 0)
+    if (x > buildings.size() - 1 || x < 0 || y > buildings[0].size() - 1 || y < 0)
     {
         cout << "Invalid x or y" << endl;
         return;
@@ -47,14 +47,14 @@ void placeBuilding(int x, int y, BUILDING building)
     }
 
     // Check if there is already a building
-    if (buildings[x][y] != EMPTY)
+    if (building != EMPTY && buildings[x][y] != EMPTY)
     {
         cout << "There is already a building at " << x << " " << y << endl;
         return;
     }
 
     buildings[x][y] = building;
-    cout << "Successfully placed building " << buildingTypes[building];
+    cout << "Successfully placed building " << buildingTypes[building] << endl;
     return;
 }
 
@@ -252,7 +252,7 @@ int main()
         }
     }
     // If the don't have exactly two dimensions, exit the program
-    if (dimArray.size() != 2)
+    if (dimArray.size() != 2 || dimArray[0] < 1 || dimArray[1] < 1)
     {
         cout << "Invalid input" << endl;
         return -1;
