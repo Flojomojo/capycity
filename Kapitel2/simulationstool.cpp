@@ -17,7 +17,7 @@ bool is_number(const std::string &s)
     return !s.empty() && it == s.end();
 }
 
-tuple<int, int> getCoordinateFromUser()
+tuple<int, int> getCoordinateFromUser(std::string prompt = "Where do you want to place the building? (Format XxY)")
 {
     // Init some variables we need for getting x and y of the "map"
     vector<int> dimArray;
@@ -25,7 +25,7 @@ tuple<int, int> getCoordinateFromUser()
     char delim = 'x';
 
     // Prompt the user for the coordinates of the "map"
-    cout << "[?] Where do you want to place the building? (Format XxY) " << endl;
+    cout << "[?] " << prompt << endl;
     cout << "> ";
     // Read the coordinates from the console
     getline(cin, parts);
@@ -57,8 +57,8 @@ void deleteBuilding()
 {
     // Get the x and y and place a "EMPTY" building at that location
     int x, y;
-    tie(x, y) = getCoordinateFromUser();
-    simulation->setBuilding(x, y, EMPTY);
+    tie(x, y) = getCoordinateFromUser("Which building do you want to delete? (Format XxY)");
+    simulation->setBuilding(x, y, EmptyBuilding());
 }
 
 void pickPlacement()
@@ -66,6 +66,8 @@ void pickPlacement()
     int x, y;
     tie(x, y) = getCoordinateFromUser();
     cout << "[?] Choose the building you want to place" << endl;
+
+    vector<Building> buildingTypes = simulation->getBuildingTypes();
 
     simulation->printAllBuildingTypes();
     cout << "> ";
@@ -78,44 +80,21 @@ void pickPlacement()
     {
         buildingType = stof(buildingString);
     }
-    // Otherwise we need to convert the string the user supplied to a enum
     else
     {
-        // Convert the input to uppercase and remove the spaces so we can make a comparison to the enum more easily
-        string uppercaseBuildingString;
-        for (auto &c : buildingString)
-        {
-            c = toupper(c);
-            if (c != ' ')
-                uppercaseBuildingString += c;
-        }
-
-        // Iterate over all the possible enum values and check if they match the user input
-        for (int i = SOLARPANEL; i <= HYDROELECTRICPOWERPLANTS; i++)
-        {
-            string currentBuildingString = buildingTypes[i];
-            string uppercaseCurrentBuildingString;
-            for (auto &c : currentBuildingString)
-            {
-                c = toupper(c);
-                if (c != ' ')
-                    uppercaseCurrentBuildingString += c;
-            }
-            if (uppercaseCurrentBuildingString == uppercaseBuildingString)
-            {
-                int buildingType = i;
-                break;
-            }
-        }
+        cout << "[!] Not a valid building type" << endl;
+        return;
     }
-    // If the supplied int is not a valid enum, return
-    if (buildingType > HYDROELECTRICPOWERPLANTS || buildingType < SOLARPANEL)
+    // If the supplied building is not a valid building return
+    if (buildingType >= buildingTypes.size())
     {
         cout << "[!] Not a valid building type" << endl;
         return;
     }
 
-    simulation->setBuilding(x, y, static_cast<BUILDING>(buildingType));
+    cout << buildingType << " " << buildingTypes.size() << endl;
+
+    simulation->setBuilding(x, y, static_cast<Building>(buildingTypes[buildingType]));
 }
 
 void showMenu()
@@ -199,6 +178,12 @@ int main()
     {
         if (is_number(part))
         {
+            // If the dimension is larger than 99, dont handle it, because that will print very ugly
+            if (part.length() > 2)
+            {
+                cout << "[!] The dimensions are too big!";
+                return 0;
+            }
             dimArray.push_back(stoi(part));
         }
     }
