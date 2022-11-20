@@ -151,20 +151,20 @@ private:
     };
 
     // Just a helper function to print the buildings
-    void printLine(std::string postfix = "")
+    void printLine(std::ostream &ostream, std::string postfix = "")
     {
         // +-----------------------+
-        std::cout << "+";
+        ostream << "+";
         for (int i = 0; i < this->buildings[0].size() - 1; i++)
         {
             // If the number is bigger than 9, we need more space
             if (i >= 10)
             {
-                std::cout << "-----";
+                ostream << "-----";
             }
             else
             {
-                std::cout << "----";
+                ostream << "----";
             }
         }
         // Again if the number is double digits we need more space
@@ -179,7 +179,146 @@ private:
             finalPart = "-----+";
         }
 
-        std::cout << finalPart << postfix << std::endl;
+        ostream << finalPart << postfix << std::endl;
+    }
+
+    void getBoardInfo(std::ostream &ostream)
+    {
+        /*
+        Print all the info in this format
+        In this function we only print the building space info, the other info boxes will be injected in printInfo()
+        +-----------------------------------+ x
+        | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 |   y
+        +-----------------------------------+---+     +-----------------+
+        | 0   0   0   0   0   0   0   0   0 | 1 |     | Gebäude:        |
+        |                                   |---|     |                 |
+        | 0   0   0   0   0   0   0   0   0 | 2 |     |   5x H  6x S    |   +-------------------+
+        |                                   |---|     |                 |	| Preise:           |
+        | 0   0   0   0   0   0   0   0   0 | 3 |     |                 |   |                   |
+        |                                   |---|     +-----------------+   |  5x H    5$ | 25$ |
+        | 0   0   0   0   0   0   0   0   0 | 4 |                           |  6x S    8$ | 48$ |
+        |                                   |---|                           |  0x W   10$ |     |
+        | 0   0   0   0   0   0   0   0   0 | 5 |     +-----------------+   |             |     |
+        |                                   |---|	  | Materialien:    |   |-------------+-----|
+        | 0   0   0   0   0   0   0   0   0 | 6 |     |                 |   |             |	 73$|
+        |                                   |---|     |   20x Metal     |   +-------------+-----+
+        | 0   0   0   0   0   0   0   0   0 | 7 |     |   10x Holz      |
+        |                                   |---|     |                 |
+        | 0   0   0   0   0   0   0   0   0 | 8 |     |                 |
+        |                                   |---|     +-----------------+
+        | 0   0   0   0   0   0   0   0   0 | 9 |
+        +-----------------------------------+---+
+        */
+
+        // +-----------------------+ x
+        this->printLine(ostream, " x");
+
+        // | 1 | 2 | 3 | 4 | 5 | 6 |   y
+        ostream << "|";
+        for (int i = 0; i < this->buildings[0].size(); i++)
+        {
+            ostream << " " << (i + 1) << " |";
+        }
+        ostream << "   y" << std::endl;
+
+        // +-----------------------------------+---+
+        this->printLine(ostream, "---+");
+        /*
+        | 0   0   0   0   0   0 | 1 |
+        |                       |---|
+        | 0   0   0   0   0   0 | 2 |
+        |                       |---|
+        | 0   0   0   0   0   0 | 3 |
+        |                       |---|
+        | 0   0   0   0   0   0 | 4 |
+        |                       |---|
+        | 0   0   0   0   0   0 | 5 |
+        |                       |---|
+        | 0   0   0   0   0   0 | 6 |
+        |                       |---|
+        | 0   0   0   0   0   0 | 7 |
+        |                       |---|
+        | 0   0   0   0   0   0 | 8 |
+        */
+        for (int i = 0; i < this->buildings.size(); i++)
+        {
+            ostream << "| ";
+            for (int j = 0; j < this->buildings[i].size() - 1; j++)
+            {
+                // Need to increase spaces so we can fit the doubledigit numbers
+                int neededSpaces = (j > 7) ? 4 : 3;
+                std::string spacesString(neededSpaces, ' ');
+                ostream << this->buildings[i][j].getLabel() << spacesString;
+            }
+            /* Print the last element without the extra space
+            | 0   0   0   0   0   0 | 1 |
+                                   ^
+                                   no extra space here
+            */
+            ostream << this->buildings[i][buildings[i].size() - 1].getLabel() << "";
+
+            // If i is 10 or over, the formattng is broken, so we just "fix" it this way and
+            // hope noone wants a buildingspace > 99
+            std::string delim = i + 1 >= 10 ? "|" : " |";
+            ostream << " | " << (i + 1) << delim << std::endl;
+
+            /* print the line between each row only if its not the last row
+            | 0   0   0   0   0   0 | 8 |
+            |                       |---| < this one
+            | 0   0   0   0   0   0 | 9 |
+            We need (3 * i_singledigit + 4 * i_doubledigit) + (i - 1) spaces
+            */
+            int totalLength = 0;
+            if (this->buildings[i].size() > 9)
+            {
+                // If there are double digit numbers, there will always be 9 single digits one and n - 9 double digit ones
+                int amountDoubleDigits = this->buildings[i].size() - 9;
+                totalLength = (3 * 9 + 4 * amountDoubleDigits) + (this->buildings[i].size() - 1);
+            }
+            else
+            {
+                totalLength = 3 * this->buildings[i].size() + (this->buildings[i].size() - 1);
+            }
+            std::string spaces(totalLength, ' ');
+            std::string spaceString = "|" + spaces + "|---|";
+            if (i != this->buildings.size() - 1)
+                ostream << spaceString << std::endl;
+        }
+
+        //+-----------------------+
+        this->printLine(ostream, "---+");
+    }
+
+    std::string getCurrentInjectString(int i)
+    {
+        const char *injectionText =
+            R"""(
++-----------------+
+| Gebäude:        |
+|                 |
+|   5x H  6x S    |   +-------------------+
+|                 |	 | Preise:           |
+|                 |   |                   |
++-----------------+   |  5x H    5$ | 25$ |
+                      |  6x S    8$ | 48$ |
+                      |  0x W   10$ |     |
++-----------------+   |             |     |
+| Materialien:    |   |-------------+-----|
+|                 |   |             |  73$|
+|   20x Metal     |   +-------------+-----+
+|   10x Holz      |
+|                 |
+|                 |
++-----------------+
+        )""";
+        // Split the string by \n
+        auto result = std::vector<std::string>{};
+        auto ss = std::stringstream{injectionText};
+
+        for (std::string line; std::getline(ss, line, '\n');)
+            result.push_back(line);
+
+        return result.at(i);
     }
 
 public:
@@ -266,109 +405,30 @@ public:
 
     void printInfo()
     {
-        /*
-        Print all the info in this format
-        +-----------------------------------+ x
-        | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 |   y
-        +-----------------------------------+---+     +-----------------+
-        | 0   0   0   0   0   0   0   0   0 | 1 |     | Gebäude:        |
-        |                                   |---|     |                 |
-        | 0   0   0   0   0   0   0   0   0 | 2 |     |   5x H  6x S    |   +-------------------+
-        |                                   |---|     |                 |	| Preise:           |
-        | 0   0   0   0   0   0   0   0   0 | 3 |     |                 |   |                   |
-        |                                   |---|     +-----------------+   |  5x H    5$ | 25$ |
-        | 0   0   0   0   0   0   0   0   0 | 4 |                           |  6x S    8$ | 48$ |
-        |                                   |---|                           |  0x W   10$ |     |
-        | 0   0   0   0   0   0   0   0   0 | 5 |     +-----------------+   |             |     |
-        |                                   |---|	  | Materialien:    |   |-------------+-----|
-        | 0   0   0   0   0   0   0   0   0 | 6 |     |                 |   |             |	 73$|
-        |                                   |---|     |   20x Metal     |   +-------------+-----+
-        | 0   0   0   0   0   0   0   0   0 | 7 |     |   10x Holz      |
-        |                                   |---|     |                 |
-        | 0   0   0   0   0   0   0   0   0 | 8 |     |                 |
-        |                                   |---|     +-----------------+
-        | 0   0   0   0   0   0   0   0   0 | 9 |
-        +-----------------------------------+---+
-        */
 
-        // +-----------------------+ x
-        this->printLine(" x");
+        std::stringstream stringStream;
 
-        // | 1 | 2 | 3 | 4 | 5 | 6 |   y
-        std::cout << "|";
-        for (int i = 0; i < this->buildings[0].size(); i++)
+        this->getBoardInfo(stringStream);
+
+        // If this string is found in the currentString we will start injection the info boxes
+        int currentInjectCounter = 0;
+        bool injected = false;
+        std::string entryPoint = "+---+";
+        int spaceAmount = 5;
+
+        std::string currentString;
+        while (std::getline(stringStream, currentString))
         {
-            std::cout << " " << (i + 1) << " |";
+            // If we have already started injecting, don't try again
+            if (injected || currentString.find(entryPoint) != std::string::npos)
+            {
+                injected = true;
+                std::string injectString(spaceAmount, ' ');
+                currentString += injectString + this->getCurrentInjectString(currentInjectCounter);
+                currentInjectCounter++;
+            }
+            std::cout << currentString << std::endl;
         }
-        std::cout << "   y" << std::endl;
-
-        // +-----------------------+---+
-        this->printLine("---+");
-
-        /*
-        | 0   0   0   0   0   0 | 1 |
-        |                       |---|
-        | 0   0   0   0   0   0 | 2 |
-        |                       |---|
-        | 0   0   0   0   0   0 | 3 |
-        |                       |---|
-        | 0   0   0   0   0   0 | 4 |
-        |                       |---|
-        | 0   0   0   0   0   0 | 5 |
-        |                       |---|
-        | 0   0   0   0   0   0 | 6 |
-        |                       |---|
-        | 0   0   0   0   0   0 | 7 |
-        |                       |---|
-        | 0   0   0   0   0   0 | 8 |
-        */
-        for (int i = 0; i < this->buildings.size(); i++)
-        {
-            std::cout << "| ";
-            for (int j = 0; j < this->buildings[i].size() - 1; j++)
-            {
-                // Need to increase spaces so we can fit the doubledigit numbers
-                int neededSpaces = (j > 7) ? 4 : 3;
-                std::string spacesString(neededSpaces, ' ');
-                std::cout << this->buildings[i][j].getLabel() << spacesString;
-            }
-            /* Print the last element without the extra space
-            | 0   0   0   0   0   0 | 1 |
-                                   ^
-                                   no extra space here
-            */
-            std::cout << this->buildings[i][buildings[i].size() - 1].getLabel() << "";
-
-            // If i is 10 or over, the formattng is broken, so we just "fix" it this way and
-            // hope noone wants a buildingspace > 99
-            std::string delim = i + 1 >= 10 ? "|" : " |";
-            std::cout << " | " << (i + 1) << delim << std::endl;
-
-            /* print the line between each row only if its not the last row
-            | 0   0   0   0   0   0 | 8 |
-            |                       |---| < this one
-            | 0   0   0   0   0   0 | 9 |
-            We need (3 * i_singledigit + 4 * i_doubledigit) + (i - 1) spaces
-            */
-            int totalLength = 0;
-            if (this->buildings[i].size() > 9)
-            {
-                // If there are double digit numbers, there will always be 9 single digits one and n - 9 double digit ones
-                int amountDoubleDigits = this->buildings[i].size() - 9;
-                totalLength = (3 * 9 + 4 * amountDoubleDigits) + (this->buildings[i].size() - 1);
-            }
-            else
-            {
-                totalLength = 3 * this->buildings[i].size() + (this->buildings[i].size() - 1);
-            }
-            std::string spaces(totalLength, ' ');
-            std::string spaceString = "|" + spaces + "|---|";
-            if (i != this->buildings.size() - 1)
-                std::cout << spaceString << std::endl;
-        }
-
-        //+-----------------------+
-        this->printLine("---+");
     }
 };
 
