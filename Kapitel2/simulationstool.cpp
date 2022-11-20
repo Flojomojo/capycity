@@ -154,7 +154,7 @@ void showMenu()
         break;
     case PRINT:
         cout << "[*] Current building space" << endl;
-        simulation->printBuildings();
+        simulation->printInfo();
         break;
     }
 }
