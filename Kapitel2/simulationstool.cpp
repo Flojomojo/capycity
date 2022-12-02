@@ -99,22 +99,6 @@ void pickPlacement()
 
 void showMenu()
 {
-
-    enum MENU
-    {
-        EXIT = 0,
-        PLACE = 1,
-        DELETE = 2,
-        PRINT = 3
-    };
-
-    const char *menuItems[] = {
-        "Exit",
-        "Place",
-        "Delete",
-        "Print",
-    };
-
     // Loop over all the menu options and print them
     cout << "[*] Menu:" << endl;
     for (int i = EXIT; i <= PRINT; i++)
@@ -149,7 +133,7 @@ void showMenu()
     case PLACE:
         pickPlacement();
         break;
-    case DELETE:
+    case DEL:
         deleteBuilding();
         break;
     case PRINT:
@@ -161,6 +145,7 @@ void showMenu()
 
 int main()
 {
+    cout << "[!] Please maximize the terminal window for the best experience" << endl;
     // Init some variables we need for getting the height and width of the "map"
     vector<int> dimArray;
     string parts;

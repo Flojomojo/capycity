@@ -1,5 +1,36 @@
+#include <map>
+#include <iostream>
+#include <tuple>
+#include <cmath>
+#include <sstream>
+#include <iomanip>
+
+#ifdef __linux__
+#include <sys/ioctl.h>
+#include <stdio.h>
+#include <unistd.h>
+#elif _WIN32
+#include <windows.h>
+#endif
+
 #ifndef SIMULATIONTOOL_H
 #define SIMULATIONTOOL_H
+
+// MENU ITEMS
+enum MENU
+{
+    EXIT = 0,
+    PLACE = 1,
+    DEL = 2,
+    PRINT = 3
+};
+
+const char *menuItems[] = {
+    "Exit",
+    "Place",
+    "Delete",
+    "Print",
+};
 
 // MATERIALS
 
@@ -7,9 +38,11 @@ class Material
 {
 protected:
     double price;
+    std::string name;
 
 public:
     double getPrice() { return this->price; }
+    std::string getName() { return this->name; }
 };
 
 class Wood : public Material
@@ -18,6 +51,7 @@ public:
     Wood()
     {
         this->price = 1;
+        this->name = "Wood";
     }
 };
 
@@ -27,6 +61,7 @@ public:
     Metal()
     {
         this->price = 2;
+        this->name = "Metal";
     }
 };
 
@@ -36,6 +71,7 @@ public:
     Plastic()
     {
         this->price = 3;
+        this->name = "Plastic";
     }
 };
 
@@ -289,25 +325,39 @@ private:
         this->printLine(ostream, "---+");
     }
 
+    // https://stackoverflow.com/a/3418285/8512776
+    void replaceAll(std::string &str, const std::string &from, const std::string &to)
+    {
+        if (from.empty())
+            return;
+        size_t start_pos = 0;
+        while ((start_pos = str.find(from, start_pos)) != std::string::npos)
+        {
+            str.replace(start_pos, from.length(), to);
+            start_pos += to.length(); // In case 'to' contains 'from', like replacing 'x' with 'yx'
+        }
+    }
+
     std::string getCurrentInjectString(int i)
     {
+        // Yes this is done very badly
         const char *injectionText =
             R"""(
 +-----------------+
-| Gebäude:        |
+| Gebaeude:       |
 |                 |
-|   5x H  6x S    |   +-------------------+
-|                 |	 | Preise:           |
-|                 |   |                   |
-+-----------------+   |  5x H    5$ | 25$ |
-                      |  6x S    8$ | 48$ |
-                      |  0x W   10$ |     |
-+-----------------+   |             |     |
-| Materialien:    |   |-------------+-----|
-|                 |   |             |  73$|
-|   20x Metal     |   +-------------+-----+
-|   10x Holz      |
-|                 |
+|  {H}x H {S}x S    |   +--------------------+
+|  {W}x W          |   | Preise:            |
+|                 |   |                    |
++-----------------+   | {H}x H {HP}$|{HT}$|
+                      | {S}x S {SP}$|{ST}$|
+                      | {W}x W {WP}$|{WT}$|
++-----------------+   |             |      |
+| Materialien:    |   |-------------+------|
+|                 |   |             |{TT}$|
+|  {M}x Metal      |   +-------------+------+
+|  {HO}x Holz       |
+|  {P}x Plastik    |
 |                 |
 +-----------------+
         )""";
@@ -317,8 +367,216 @@ private:
 
         for (std::string line; std::getline(ss, line, '\n');)
             result.push_back(line);
+        if (result.size() > i)
+            return result.at(i);
+        return "-1";
+    }
 
-        return result.at(i);
+    std::vector<Building> getBuildings()
+    {
+        // Get all non empty buildings
+        std::vector<Building> buildings;
+        for (int i = 0; i < this->buildings.size(); i++)
+        {
+            for (int j = 0; j < this->buildings[0].size(); j++)
+            {
+                if (this->buildings[i][j].getFullLabel() != EmptyBuilding().getFullLabel())
+                {
+                    buildings.push_back(this->buildings[i][j]);
+                }
+            }
+        }
+        return buildings;
+    }
+
+    std::string doubleToRoundedString(double d)
+    {
+        double roundedDouble = std::round(d * 100.0) / 100.0;
+        std::stringstream stream;
+        int precision = 2;
+        if (roundedDouble >= 100)
+        {
+            precision = 1;
+        }
+        stream << std::fixed << std::setprecision(precision) << roundedDouble;
+        std::string prefix = (d < 10) ? " " : "";
+        return prefix + stream.str();
+    }
+
+    std::vector<std::tuple<std::string, std::string>> collectInfo()
+    {
+
+        std::vector<std::tuple<std::string, std::string>> info;
+
+        std::vector<Building> placedBuildings = this->getBuildings();
+        std::map<std::string, int> buildingsHashMap = {
+            {SolarPanelBuilding().getLabel(), 0},
+            {WindPowerPlantBuilding().getLabel(), 0},
+            {HydroelectricPowerPlants().getLabel(), 0}};
+
+        std::map<std::string, int> materialsHashMap = {
+            {Wood().getName(), 0},
+            {Metal().getName(), 0},
+            {Plastic().getName(), 0}};
+
+        std::map<std::string, double> buildingsPriceHashMap = {
+            {SolarPanelBuilding().getLabel(), 0},
+            {WindPowerPlantBuilding().getLabel(), 0},
+            {HydroelectricPowerPlants().getLabel(), 0}};
+
+        for (Building currentBuilding : placedBuildings)
+        {
+            buildingsHashMap[currentBuilding.getLabel()] += 1;
+
+            buildingsPriceHashMap[currentBuilding.getLabel()] += currentBuilding.getTotalPrice();
+            for (Material &material : currentBuilding.getNecessaryMaterials())
+            {
+                materialsHashMap[material.getName()] += 1;
+            }
+        }
+
+        // Add all the building amounts to the info vector
+        for (auto const &buildingValue : buildingsHashMap)
+        {
+            std::tuple<std::string, std::string> currentInfoTuple = std::make_tuple(buildingValue.first, std::to_string(buildingValue.second));
+
+            info.push_back(currentInfoTuple);
+        }
+
+        double totalPrice = 0;
+        // Add all the building prices to the info vector
+        for (auto const &buildingValue : buildingsPriceHashMap)
+        {
+            std::string materialLabel = buildingValue.first + "T";
+            std::string roundedPrice = this->doubleToRoundedString(buildingValue.second);
+            std::tuple<std::string, std::string> currentInfoTuple = std::make_tuple(materialLabel, roundedPrice);
+            totalPrice += buildingValue.second;
+            info.push_back(currentInfoTuple);
+        }
+        std::string roundedPrice = this->doubleToRoundedString(totalPrice);
+        std::tuple<std::string, std::string> totalPriceTuple = std::make_tuple("TT", roundedPrice);
+        info.push_back(totalPriceTuple);
+
+        // Add all the materials to the info vector
+        for (auto const &materialValue : materialsHashMap)
+        {
+            // Loop over all the needed materials and replace the material label with the replacement token
+            std::string materialLabel = "";
+            if (materialValue.first == "Wood")
+            {
+                materialLabel = "HO";
+            }
+            else if (materialValue.first == "Plastic")
+            {
+                materialLabel = "P";
+            }
+            else if (materialValue.first == "Metal")
+            {
+                materialLabel = "M";
+            }
+            std::tuple<std::string, std::string> currentInfoTuple = std::make_tuple(materialLabel, std::to_string(materialValue.second));
+            info.push_back(currentInfoTuple);
+        }
+
+        // Yes this is ugly and lazy but its probably as much code as any other solution
+        std::tuple<std::string, std::string> hydroTuple = std::make_tuple("HP", this->doubleToRoundedString(HydroelectricPowerPlants().getTotalPrice()));
+        std::tuple<std::string, std::string> windTuple = std::make_tuple("WP", this->doubleToRoundedString(WindPowerPlantBuilding().getTotalPrice()));
+        std::tuple<std::string, std::string> solarTuple = std::make_tuple("SP", this->doubleToRoundedString(SolarPanelBuilding().getTotalPrice()));
+        info.push_back(hydroTuple);
+        info.push_back(windTuple);
+        info.push_back(solarTuple);
+        return info;
+    }
+
+    // https://stackoverflow.com/a/23370070/8512776
+    int getWindowSize()
+    {
+#ifdef __linux__
+        struct winsize w;
+        ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
+        return w.ws_col;
+#elif _WIN32
+        CONSOLE_SCREEN_BUFFER_INFO csbi;
+        GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
+        return csbi.srWindow.Right - csbi.srWindow.Left + 1;
+#endif
+    }
+
+    void printPrettyInfo()
+    {
+        std::stringstream stringStream;
+
+        this->getBoardInfo(stringStream);
+
+        std::vector<std::tuple<std::string, std::string>> replaceVector = this->collectInfo();
+        // If this string is found in the currentString we will start injection the info boxes
+        int currentInjectCounter = 0;
+        bool injected = false;
+        std::string entryPoint = "+---+";
+        int spaceAmount = 5;
+
+        std::string currentString;
+        while (std::getline(stringStream, currentString))
+        {
+            // If we have already started injecting, don't try again
+            if (injected || currentString.find(entryPoint) != std::string::npos)
+            {
+                injected = true;
+                std::string injectString(spaceAmount, ' ');
+                std::string appendedInjectString = this->getCurrentInjectString(currentInjectCounter);
+                if (appendedInjectString == "-1")
+                    appendedInjectString = "";
+                currentString += injectString + appendedInjectString;
+                for (std::tuple<std::string, std::string> replaceMe : replaceVector)
+                {
+                    std::string replaceLabel, replaceValue;
+                    std::tie(replaceLabel, replaceValue) = replaceMe;
+                    // If the value is only one char add a space in front of it as padding
+                    if (replaceValue.length() == 1)
+                    {
+                        replaceValue = " " + replaceValue;
+                    }
+                    this->replaceAll(currentString, "{" + replaceLabel + "}", replaceValue);
+                }
+                currentInjectCounter++;
+            }
+            std::cout << currentString << std::endl;
+        }
+    }
+
+    void printNotSoPrettyInfo()
+    {
+        std::stringstream stringStream;
+
+        this->getBoardInfo(stringStream);
+        int currentInjectCounter = 0;
+        std::vector<std::tuple<std::string, std::string>> replaceVector = this->collectInfo();
+
+        std::string currentString;
+        while (std::getline(stringStream, currentString))
+        {
+            std::cout << currentString << std::endl;
+        }
+
+        std::string currentReplaceLine = this->getCurrentInjectString(currentInjectCounter);
+        while (currentReplaceLine != "-1")
+        {
+            for (std::tuple<std::string, std::string> replaceMe : replaceVector)
+            {
+                std::string replaceLabel, replaceValue;
+                std::tie(replaceLabel, replaceValue) = replaceMe;
+
+                // If the value is only one char add a space in front of it as padding
+                if (replaceValue.length() == 1)
+                {
+                    replaceValue = " " + replaceValue;
+                }
+                this->replaceAll(currentReplaceLine, "{" + replaceLabel + "}", replaceValue);
+            }
+            std::cout << currentReplaceLine << std::endl;
+            currentInjectCounter++;
+            currentReplaceLine = this->getCurrentInjectString(currentInjectCounter);
+        }
     }
 
 public:
@@ -405,29 +663,15 @@ public:
 
     void printInfo()
     {
+        int windowSize = this->getWindowSize();
 
-        std::stringstream stringStream;
-
-        this->getBoardInfo(stringStream);
-
-        // If this string is found in the currentString we will start injection the info boxes
-        int currentInjectCounter = 0;
-        bool injected = false;
-        std::string entryPoint = "+---+";
-        int spaceAmount = 5;
-
-        std::string currentString;
-        while (std::getline(stringStream, currentString))
+        if (windowSize > 100)
         {
-            // If we have already started injecting, don't try again
-            if (injected || currentString.find(entryPoint) != std::string::npos)
-            {
-                injected = true;
-                std::string injectString(spaceAmount, ' ');
-                currentString += injectString + this->getCurrentInjectString(currentInjectCounter);
-                currentInjectCounter++;
-            }
-            std::cout << currentString << std::endl;
+            this->printPrettyInfo();
+        }
+        else
+        {
+            this->printNotSoPrettyInfo();
         }
     }
 };
