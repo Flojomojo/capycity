@@ -110,6 +110,7 @@ public:
         // Just place holder values basically
         this->basePrice = 0;
         this->label = "0";
+        this->fullLabel = "Empty";
     }
 };
 
@@ -174,20 +175,42 @@ public:
     }
 };
 
+// Yes this is done very badly
+const char *injectionText =
+    R"""(
++-----------------+
+| Gebaeude:       |
+|                 |
+|  {H}x H {S}x S    |   +--------------------+
+|  {W}x W          |   | Preise:            |
+|                 |   |                    |
++-----------------+   | {H}x H {HP}$|{HT}$|
+                      | {S}x S {SP}$|{ST}$|
+                      | {W}x W {WP}$|{WT}$|
++-----------------+   |             |      |
+| Materialien:    |   |-------------+------|
+|                 |   |             |{TT}$|
+|  {M}x Metal      |   +-------------+------+
+|  {HO}x Holz       |
+|  {P}x Plastik    |
+|                 |
++-----------------+
+        )""";
+
 class CapycitySim
 {
 private:
     std::vector<std::vector<Building>> buildings;
     std::vector<Building> buildingTypes{SolarPanelBuilding(), WindPowerPlantBuilding(), HydroelectricPowerPlants()};
 
+    // Check if x or y are out of bounds
     bool inBounds(int x, int y)
     {
-        // Check if x or y are out of bounds
         return (x <= this->buildings.size() - 1 && x >= 0 && y <= this->buildings[0].size() - 1 && y >= 0);
     };
 
-    // Just a helper function to print the buildings
-    void printLine(std::ostream &ostream, std::string postfix = "")
+    // Just a helper function to calculate the correct line format
+    void getLine(std::ostream &ostream, std::string postfix = "")
     {
         // +-----------------------+
         ostream << "+";
@@ -205,7 +228,7 @@ private:
         }
         // Again if the number is double digits we need more space
         std::string finalPart = "---+";
-        // If its ten we need one less -
+        // If its ten we need one less "-"
         if (this->buildings[0].size() == 10)
         {
             finalPart = "----+";
@@ -221,8 +244,7 @@ private:
     void getBoardInfo(std::ostream &ostream)
     {
         /*
-        Print all the info in this format
-        In this function we only print the building space info, the other info boxes will be injected in printInfo()
+        Gets all the info in this format without the info signs on the left
         +-----------------------------------+ x
         | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 |   y
         +-----------------------------------+---+     +-----------------+
@@ -247,7 +269,7 @@ private:
         */
 
         // +-----------------------+ x
-        this->printLine(ostream, " x");
+        this->getLine(ostream, " x");
 
         // | 1 | 2 | 3 | 4 | 5 | 6 |   y
         ostream << "|";
@@ -258,7 +280,7 @@ private:
         ostream << "   y" << std::endl;
 
         // +-----------------------------------+---+
-        this->printLine(ostream, "---+");
+        this->getLine(ostream, "---+");
         /*
         | 0   0   0   0   0   0 | 1 |
         |                       |---|
@@ -322,7 +344,7 @@ private:
         }
 
         //+-----------------------+
-        this->printLine(ostream, "---+");
+        this->getLine(ostream, "---+");
     }
 
     // https://stackoverflow.com/a/3418285/8512776
@@ -340,33 +362,14 @@ private:
 
     std::string getCurrentInjectString(int i)
     {
-        // Yes this is done very badly
-        const char *injectionText =
-            R"""(
-+-----------------+
-| Gebaeude:       |
-|                 |
-|  {H}x H {S}x S    |   +--------------------+
-|  {W}x W          |   | Preise:            |
-|                 |   |                    |
-+-----------------+   | {H}x H {HP}$|{HT}$|
-                      | {S}x S {SP}$|{ST}$|
-                      | {W}x W {WP}$|{WT}$|
-+-----------------+   |             |      |
-| Materialien:    |   |-------------+------|
-|                 |   |             |{TT}$|
-|  {M}x Metal      |   +-------------+------+
-|  {HO}x Holz       |
-|  {P}x Plastik    |
-|                 |
-+-----------------+
-        )""";
         // Split the string by \n
         auto result = std::vector<std::string>{};
         auto ss = std::stringstream{injectionText};
 
         for (std::string line; std::getline(ss, line, '\n');)
             result.push_back(line);
+
+        // If there are no more lines to inject, return a "-1" to indicate that
         if (result.size() > i)
             return result.at(i);
         return "-1";
@@ -391,6 +394,7 @@ private:
 
     std::string doubleToRoundedString(double d)
     {
+        // Round a double so we can print it nicely
         double roundedDouble = std::round(d * 100.0) / 100.0;
         std::stringstream stream;
         int precision = 2;
@@ -409,6 +413,7 @@ private:
         std::vector<std::tuple<std::string, std::string>> info;
 
         std::vector<Building> placedBuildings = this->getBuildings();
+        // Fill all the hashmaps with empty values
         std::map<std::string, int> buildingsHashMap = {
             {SolarPanelBuilding().getLabel(), 0},
             {WindPowerPlantBuilding().getLabel(), 0},
@@ -424,6 +429,7 @@ private:
             {WindPowerPlantBuilding().getLabel(), 0},
             {HydroelectricPowerPlants().getLabel(), 0}};
 
+        // Add the building count, the material count and the price of the buildings
         for (Building currentBuilding : placedBuildings)
         {
             buildingsHashMap[currentBuilding.getLabel()] += 1;
@@ -453,6 +459,7 @@ private:
             totalPrice += buildingValue.second;
             info.push_back(currentInfoTuple);
         }
+        // Also add the total price
         std::string roundedPrice = this->doubleToRoundedString(totalPrice);
         std::tuple<std::string, std::string> totalPriceTuple = std::make_tuple("TT", roundedPrice);
         info.push_back(totalPriceTuple);
@@ -491,6 +498,7 @@ private:
     // https://stackoverflow.com/a/23370070/8512776
     int getWindowSize()
     {
+        // Get the console window width
 #ifdef __linux__
         struct winsize w;
         ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
@@ -502,7 +510,7 @@ private:
 #endif
     }
 
-    void printPrettyInfo()
+    void getPrettyInfo(std::ostream &ostream)
     {
         std::stringstream stringStream;
 
@@ -540,11 +548,11 @@ private:
                 }
                 currentInjectCounter++;
             }
-            std::cout << currentString << std::endl;
+            ostream << currentString << std::endl;
         }
     }
 
-    void printNotSoPrettyInfo()
+    void getCompactInfo(std::ostream &ostream)
     {
         std::stringstream stringStream;
 
@@ -555,7 +563,7 @@ private:
         std::string currentString;
         while (std::getline(stringStream, currentString))
         {
-            std::cout << currentString << std::endl;
+            ostream << currentString << std::endl;
         }
 
         std::string currentReplaceLine = this->getCurrentInjectString(currentInjectCounter);
@@ -573,9 +581,68 @@ private:
                 }
                 this->replaceAll(currentReplaceLine, "{" + replaceLabel + "}", replaceValue);
             }
-            std::cout << currentReplaceLine << std::endl;
+            ostream << currentReplaceLine << std::endl;
             currentInjectCounter++;
             currentReplaceLine = this->getCurrentInjectString(currentInjectCounter);
+        }
+    }
+
+    int getLongestStringWidth(std::stringstream &sstream)
+    {
+        int longestWidth = 0;
+
+        std::string currentString;
+        while (std::getline(sstream, currentString))
+        {
+            if (currentString.length() > longestWidth)
+            {
+                longestWidth = currentString.length();
+            }
+        }
+
+        // Return to the original pos in the stream
+        sstream.clear();
+        sstream.seekg(0);
+        return longestWidth;
+    }
+
+    int getStringStreamHeight(std::stringstream &sstream)
+    {
+        int height = 0;
+
+        std::string currentString;
+        while (std::getline(sstream, currentString))
+        {
+            height++;
+        }
+
+        // Return to the original pos in the stream
+        sstream.clear();
+        sstream.seekg(0);
+        return height;
+    }
+
+    int getLineCountOfString(const char *str)
+    {
+        // Split the string by \n
+        auto result = std::vector<std::string>{};
+        auto ss = std::stringstream{str};
+
+        for (std::string line; std::getline(ss, line, '\n');)
+            result.push_back(line);
+
+        // Return how many lines there are
+        // There is probably a better way to do this but I'm don't know it
+        return result.size();
+    }
+
+    void printStringStream(std::stringstream &stringstream)
+    {
+        // Loop over the string stream and print each line
+        std::string currentString;
+        while (std::getline(stringstream, currentString))
+        {
+            std::cout << currentString << std::endl;
         }
     }
 
@@ -624,7 +691,8 @@ public:
         // Check if the building is already at this location
         if (this->buildings[x][y].getFullLabel() == building.getFullLabel())
         {
-            std::cout << "[!] The building " << building.getFullLabel() << " is already at " << x << " " << y << std::endl;
+            // We print this with x + 1 and y + 1 because the user will see the board as 1 indexed
+            std::cout << "[!] The building " << building.getFullLabel() << " is already at " << (x + 1) << "x" << (y + 1) << std::endl;
             return;
         }
 
@@ -633,7 +701,8 @@ public:
         // the parameter, we want to delete that building so we dont care about if there is a building or not
         if (building.getFullLabel() != EmptyBuilding().getFullLabel() && this->buildings[x][y].getFullLabel() != EmptyBuilding().getFullLabel())
         {
-            std::cout << "[!] There is already a building at " << x << " " << y << std::endl;
+            // We print this with x + 1 and y + 1 because the user will see the board as 1 indexed
+            std::cout << "[!] There is already a building at " << (x + 1) << "x" << (y + 1) << std::endl;
             return;
         }
 
@@ -664,14 +733,31 @@ public:
     void printInfo()
     {
         int windowSize = this->getWindowSize();
+        std::stringstream prettyInfoStream;
+        this->getPrettyInfo(prettyInfoStream);
+        std::stringstream compactInfoStream;
+        this->getCompactInfo(compactInfoStream);
+        int longestPrettyStringWidth = this->getLongestStringWidth(prettyInfoStream);
+        int longestCompactStringWidth = this->getLongestStringWidth(compactInfoStream);
 
-        if (windowSize > 100)
+        // For now when both the output variants are too large we just dont print
+        if (longestPrettyStringWidth > windowSize && longestCompactStringWidth > windowSize)
         {
-            this->printPrettyInfo();
+            std::cout << "[!] The output is too large to display correctly, please shrink your building space" << std::endl;
+            return;
+        }
+
+        std::cout << this->getStringStreamHeight(prettyInfoStream) << " " << this->getLineCountOfString(injectionText) << std::endl;
+
+        // If the longest line of the pretty info is longer than the window size, print the compact info
+        // Also if the height of the pretty info is longer than the height of the injection text, print the compact info
+        if ((longestPrettyStringWidth > windowSize) || (this->getStringStreamHeight(prettyInfoStream) < this->getLineCountOfString(injectionText)))
+        {
+            this->printStringStream(compactInfoStream);
         }
         else
         {
-            this->printNotSoPrettyInfo();
+            this->printStringStream(prettyInfoStream);
         }
     }
 };

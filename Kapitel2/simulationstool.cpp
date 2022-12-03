@@ -42,7 +42,6 @@ tuple<int, int> getCoordinateFromUser(std::string prompt = "Where do you want to
     // If the array is not exactly of size 2 return a invalid tuple
     if (dimArray.size() != 2)
     {
-        cout << "Invalid input" << endl;
         return make_tuple(-1, -1);
     }
 
@@ -58,6 +57,11 @@ void deleteBuilding()
     // Get the x and y and place a "EMPTY" building at that location
     int x, y;
     tie(x, y) = getCoordinateFromUser("Which building do you want to delete? (Format XxY)");
+    if (x == -1 || y == -1)
+    {
+        cout << "[!] Invalid coordinates" << endl;
+        return;
+    }
     simulation->setBuilding(x, y, EmptyBuilding());
 }
 
@@ -65,6 +69,11 @@ void pickPlacement()
 {
     int x, y;
     tie(x, y) = getCoordinateFromUser();
+    if (x == -1 || y == -1)
+    {
+        cout << "[!] Invalid coordinates" << endl;
+        return;
+    }
     cout << "[?] Choose the building you want to place" << endl;
 
     vector<Building> buildingTypes = simulation->getBuildingTypes();
@@ -91,9 +100,6 @@ void pickPlacement()
         cout << "[!] Not a valid building type" << endl;
         return;
     }
-
-    cout << buildingType << " " << buildingTypes.size() << endl;
-
     simulation->setBuilding(x, y, static_cast<Building>(buildingTypes[buildingType]));
 }
 
